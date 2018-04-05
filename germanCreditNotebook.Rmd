@@ -1,0 +1,232 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Loading Libraries
+
+```{r message=FALSE, warning=FALSE}
+load_packages <- c("ggplot2","car","Hmisc","ROCR","caret","dummies","caTools",
+                   "MASS", "gridExtra", "tidyverse")
+#load the packages
+lapply(load_packages,require,character.only = TRUE)
+```
+
+# Reading in Data
+
+```{r message=FALSE, warning=FALSE}
+germanRaw <- read.csv("german.csv")
+str(germanRaw)
+```
+
+```{r}
+prop.table(table(germanRaw$Default_status))
+
+```
+
+# Data cleansing
+
+Lets cap/floor some numerics to improve stability
+
+## Credit Amount
+
+```{r}
+germanRaw$Credit.amount <- as.double(germanRaw$Credit.amount)
+boxplot(germanRaw$Credit.amount)
+q92 <- quantile(germanRaw$Credit.amount, 0.92)
+germanRaw$Credit.amount[which(germanRaw$Credit.amount > q92)] <- q92
+boxplot(germanRaw$Credit.amount)
+
+
+
+
+germanRaw$Age.in.Years <- as.double(germanRaw$Age.in.Years)
+
+```
+
+## Age
+
+```{r}
+germanRaw$Age.in.Years <- as.double(germanRaw$Age.in.Years)
+boxplot(germanRaw$Age.in.Years)
+q97 <- quantile(germanRaw$Age.in.Years, 0.97)
+germanRaw$Age.in.Years[which(germanRaw$Age.in.Years > q97)] <- q97
+boxplot(germanRaw$Age.in.Years)
+```
+
+## Ordering factors
+
+```{r}
+germanRaw$Credit.history <- germanRaw$Credit.history %>%
+                            fct_infreq()
+
+germanRaw$Purpose <- germanRaw$Purpose %>%
+                            fct_infreq()
+
+
+
+germanRaw$Installment.rate.in.percentage.of.disposable.income <- germanRaw$Installment.rate.in.percentage.of.disposable.income %>%
+  as.factor() %>%
+  fct_infreq()
+
+
+germanRaw$Housing. <- germanRaw$Housing. %>%
+  fct_infreq()
+
+germanRaw$Job_status <- germanRaw$Job_status %>%
+                        fct_infreq()
+
+germanRaw$Property <- germanRaw$Property %>%
+                      fct_infreq()
+
+germanRaw$Status.of.existing.checking.account <- germanRaw$Status.of.existing.checking.account %>%
+                                                 fct_infreq()
+
+germanRaw$Savings.account.bonds <- germanRaw$Savings.account.bonds %>%
+                                   fct_infreq()
+
+germanRaw$Other.debtors...guarantors <- germanRaw$Other.debtors...guarantors %>%
+                                        fct_infreq()
+
+```
+
+
+
+# EDA
+## Univariate Analysis
+
+```{r}
+plot_credit_history <- ggplot(germanRaw,
+                              aes(x = Credit.history,
+                                  fill = factor(Default_status))) +
+                       geom_bar() +
+                       guides(fill = FALSE)
+
+
+plot_loan_purpose <- ggplot(germanRaw,
+                            aes(x = Credit.history,
+                                fill = factor(Default_status))) + 
+                     geom_bar() +
+                     guides(fill = FALSE)
+
+
+plot_credit_amount <- ggplot(germanRaw,
+                             aes(x = Credit.amount,
+                                 fill = factor(Default_status)))  + 
+                      geom_histogram(binwidth = 500) + 
+                      guides(fill=FALSE)
+
+
+plot_installment_rate <- ggplot(germanRaw,
+                                aes(x = Installment.rate.in.percentage.of.disposable.income,
+                                    fill = factor(Default_status))) +
+                         geom_bar() + 
+                         scale_fill_discrete(labels=c("Good","Bad"))
+
+
+grid.arrange(plot_credit_history,
+             plot_loan_purpose,
+             plot_credit_history,
+             plot_installment_rate, ncol=2,
+             top = "Univariate Analysis")
+
+
+
+loan_propery <-  ggplot(germanRaw, 
+                        aes(x = Property, 
+                            fill = factor(Default_status))) + 
+                  geom_bar() +
+                  guides(fill=FALSE)
+ 
+#plot housing                           
+loan_housing <-  ggplot(germanRaw,
+                        aes(x = Housing., 
+                            fill = factor(Default_status))) + 
+                 geom_bar() +
+                 guides(fill=FALSE)
+
+#plot loan job
+loan_job <-  ggplot(germanRaw,
+                    aes(x = Job_status,
+                        fill = factor(Default_status))) +
+            geom_bar() +
+            guides(fill = FALSE)
+
+#plot loan telephone
+loan_telephone <- ggplot(germanRaw,
+                         aes(x = Telephone.,
+                             fill = factor(Default_status))) +
+                  geom_bar() +
+                  guides(fill = guide_legend(reverse = TRUE)) +
+                  labs(fill = 'Loan status') + 
+                  scale_fill_discrete(labels = c("Good", "Bad"))
+
+grid.arrange(loan_housing,loan_job,
+             loan_propery,loan_telephone, ncol=2,
+             top = "Univariate Analysis")
+
+#plot checking account
+loan_checking_account <-  ggplot(germanRaw,
+                                 aes(x = Status.of.existing.checking.account,
+                                     fill = factor(Default_status))) +
+                          geom_bar() +
+                          guides(fill = FALSE)
+
+#plot savings bonds
+loan_savings_bonds <-ggplot(germanRaw,
+                            aes(x = Savings.account.bonds,
+                                 fill = factor(Default_status))) +
+                    geom_bar() +
+                    guides(fill = FALSE)
+
+#plot loan duration
+loan_duration <- ggplot(germanRaw,
+                        aes(x = Duration.in.month,
+                            fill = factor(Default_status))) +
+                 geom_histogram(binwidth = 5) +
+                 guides(fill = FALSE)
+
+
+#plot loan other debtors
+loan_debtors <-ggplot(germanRaw,
+                      aes(x = Other.debtors...guarantors,
+                          fill = factor(Default_status))) +
+               geom_bar() +
+               guides(fill = guide_legend(reverse = TRUE)) +
+               labs(fill = 'Loan status') +
+  scale_fill_discrete(labels = c("Good", "Bad"))
+
+
+grid.arrange(loan_checking_account,loan_debtors,loan_duration,
+             loan_savings_bonds,ncol=2,top = "Univariate Analysis")
+
+```
+
+
+```{r}
+#separate all the character variables for data preparation
+#Convert the variables from character type to factor
+germanFct <- germanRaw[ ,map(germanRaw, class) == "factor"]
+#check the structure
+str(german_credit_char)
+
+#create dummy variables for the factor variables using dummies package
+germanRaw_dummy <- dummy.data.frame(germanFct ,all = FALSE)
+#Remove one  dummy column  from all factor variables
+german_credit_dummy <- german_credit_dummy[,-c(1,5,10,20,25,30,34,37,41,44,47,51,53)]
+#Remove the original character variables from the dataframe
+german_credit <- german_credit[,-c(1,3,4,6,7,9,10,12,14,15,17,19,20)]
+#Bind the german credit dataframe with dummy variables dataframe
+german_credit <- cbind(german_credit,german_credit_dummy)
+#Check the dataframe. It should consist only numerical variables
+str(german_credit)
+```
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
