@@ -182,6 +182,8 @@ germanNonFct <- germanRaw[ , map(germanRaw, class) != "factor"]
 #Bind the german credit dataframe with dummy variables dataframe
 germanDummy <- cbind(germanNonFct, germanRaw_dummy)
 germanDummy$Default_status <- as.factor(germanDummy$Default_status)
+germanDummy$Default_status <- germanDummy$Default_status %>%
+                              fct_recode(good = "1", bad = "0")
 ```
 
 
@@ -217,6 +219,11 @@ fit <- train(
               family    = binomial ,
               trControl = tc
             )
+
+test_reg_cv_model <- train(Default_status ~ .,
+                           data = german_train,
+                           method = "glmboost", 
+                           trControl = rctrl1)
 
 ```
 
