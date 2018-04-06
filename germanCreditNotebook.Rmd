@@ -7,7 +7,7 @@ output: html_notebook
 
 ```{r message=FALSE, warning=FALSE}
 load_packages <- c("ggplot2","car","Hmisc","ROCR","caret","dummies","caTools",
-                   "MASS", "gridExtra", "tidyverse")
+                   "MASS", "gridExtra", "tidyverse", "e1071")
 #load the packages
 lapply(load_packages,require,character.only = TRUE)
 ```
@@ -172,9 +172,8 @@ grid.arrange(loan_checking_account,loan_debtors,loan_duration,
 
 Creating dummy variables
 ```{r}
-germanRaw$Default_status <- as.factor(germanRaw$Default_status)
-
 germanFct <- germanRaw[ , map(germanRaw, class) == "factor"]
+germanFct$Default_status <- germanRaw$Default_status
 
 #create dummy variables for the factor variables using dummies package
 germanRaw_dummy <- model.matrix(Default_status ~ ., germanFct)
@@ -182,7 +181,50 @@ germanRaw_dummy <- model.matrix(Default_status ~ ., germanFct)
 germanNonFct <- germanRaw[ , map(germanRaw, class) != "factor"]
 #Bind the german credit dataframe with dummy variables dataframe
 germanDummy <- cbind(germanNonFct, germanRaw_dummy)
+germanDummy$Default_status <- as.factor(germanDummy$Default_status)
+```
+
+
+# Model development
+
+Lets create test/train splits using `caret`
+
+```{r}
+ind <- createDataPartition(germanDummy$Default_status,
+                           p = 0.75,
+                           list = FALSE)
+
+german_train <- germanDummy[ind, , drop = FALSE]
+german_test <- germanDummy[-ind, ,drop = FALSE]
+```
+
+Lets set up the train control to do 10-fold cross-validation
+
+```{r}
+tc <- trainControl("cv",
+                   10,
+                   savePredictions = TRUE)
+```
+
+
+Fitting the model
+
+```{r}
+fit <- train(
+              Default_status ~ .,
+              data      = germanDummy,
+              method    = "glm"    ,
+              family    = binomial ,
+              trControl = tc
+            )
+
 ```
 
 
 
+```{r}
+pred <- predict(fit$finalModel, german_test, type = "response")
+fitpredt <- function(t) factor(ifelse(pred > t , 1,0))
+confusionMatrix(fitpredt(0.3),german_test$Default_status)
+
+```
