@@ -16,7 +16,6 @@ lapply(load_packages,require,character.only = TRUE)
 
 ```{r message=FALSE, warning=FALSE}
 germanRaw <- read.csv("german.csv")
-str(germanRaw)
 ```
 
 ```{r}
@@ -37,9 +36,6 @@ q92 <- quantile(germanRaw$Credit.amount, 0.92)
 germanRaw$Credit.amount[which(germanRaw$Credit.amount > q92)] <- q92
 boxplot(germanRaw$Credit.amount)
 
-
-
-
 germanRaw$Age.in.Years <- as.double(germanRaw$Age.in.Years)
 
 ```
@@ -57,37 +53,9 @@ boxplot(germanRaw$Age.in.Years)
 ## Ordering factors
 
 ```{r}
-germanRaw$Credit.history <- germanRaw$Credit.history %>%
-                            fct_infreq()
-
-germanRaw$Purpose <- germanRaw$Purpose %>%
-                            fct_infreq()
-
-
-
-germanRaw$Installment.rate.in.percentage.of.disposable.income <- germanRaw$Installment.rate.in.percentage.of.disposable.income %>%
-  as.factor() %>%
-  fct_infreq()
-
-
-germanRaw$Housing. <- germanRaw$Housing. %>%
-  fct_infreq()
-
-germanRaw$Job_status <- germanRaw$Job_status %>%
-                        fct_infreq()
-
-germanRaw$Property <- germanRaw$Property %>%
-                      fct_infreq()
-
-germanRaw$Status.of.existing.checking.account <- germanRaw$Status.of.existing.checking.account %>%
-                                                 fct_infreq()
-
-germanRaw$Savings.account.bonds <- germanRaw$Savings.account.bonds %>%
-                                   fct_infreq()
-
-germanRaw$Other.debtors...guarantors <- germanRaw$Other.debtors...guarantors %>%
-                                        fct_infreq()
-
+germanRaw <- germanRaw %>%
+             map_if(is.factor, fct_infreq) %>%
+             as.data.frame()
 ```
 
 
@@ -202,24 +170,18 @@ grid.arrange(loan_checking_account,loan_debtors,loan_duration,
 
 ```
 
-
+Creating dummy variables
 ```{r}
-#separate all the character variables for data preparation
-#Convert the variables from character type to factor
-germanFct <- germanRaw[ ,map(germanRaw, class) == "factor"]
-#check the structure
-str(german_credit_char)
+germanRaw$Default_status <- as.factor(germanRaw$Default_status)
+
+germanFct <- germanRaw[ , map(germanRaw, class) == "factor"]
 
 #create dummy variables for the factor variables using dummies package
-germanRaw_dummy <- dummy.data.frame(germanFct ,all = FALSE)
-#Remove one  dummy column  from all factor variables
-german_credit_dummy <- german_credit_dummy[,-c(1,5,10,20,25,30,34,37,41,44,47,51,53)]
+germanRaw_dummy <- model.matrix(Default_status ~ ., germanFct)
 #Remove the original character variables from the dataframe
-german_credit <- german_credit[,-c(1,3,4,6,7,9,10,12,14,15,17,19,20)]
+germanNonFct <- germanRaw[ , map(germanRaw, class) != "factor"]
 #Bind the german credit dataframe with dummy variables dataframe
-german_credit <- cbind(german_credit,german_credit_dummy)
-#Check the dataframe. It should consist only numerical variables
-str(german_credit)
+germanDummy <- cbind(germanNonFct, germanRaw_dummy)
 ```
 
 
